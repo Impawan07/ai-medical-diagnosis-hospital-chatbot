@@ -53,6 +53,17 @@ hospital_data = {
     "emergency": "🚨 Emergency department is open 24/7 on the Ground Floor."
 }
 
+condition_to_department = {
+    "diabetes": "endocrinology",
+    "sugar": "endocrinology",
+    "heart": "cardiology",
+    "bp": "cardiology",
+    "blood pressure": "cardiology",
+    "fever": "general",
+    "cold": "general",
+    "cough": "general"
+}
+
 # -------------------------------
 # Rule-Based Engine
 # -------------------------------
@@ -69,32 +80,32 @@ def rule_based_response(user_query):
             "Let me know if you'd like help finding a doctor."
         )
 
-    if "doctor" in q:
-        for dept, doctors in hospital_data["doctors"].items():
-            if dept in q:
-                return (
-                    f"👨‍⚕️ Doctors available in **{dept.title()}**:\n\n"
-                    + "\n".join(f"- {doc}" for doc in doctors)
-                )
-        return (
-            "👨‍⚕️ Please specify the department "
-            "(e.g., endocrinology, cardiology, general medicine)."
-        )
+   if "doctor" in q or "consult" in q:
+    # Check if a medical condition is mentioned
+    for condition, dept in condition_to_department.items():
+        if condition in q:
+            doctors = hospital_data["doctors"].get(dept, [])
+            return (
+                f"👨‍⚕️ For **{condition.title()}**, you should consult the "
+                f"**{dept.title()} department**.\n\n"
+                "Available doctors:\n"
+                + "\n".join(f"- {doc}" for doc in doctors)
+            )
 
-    if "bill" in q or "payment" in q:
-        modes = ", ".join(hospital_data["billing"]["payment_modes"])
-        return (
-            f"💳 Payment methods accepted: **{modes}**.\n\n"
-            f"For assistance, please visit the **{hospital_data['billing']['helpdesk']}**."
-        )
+    # Fallback: department explicitly mentioned
+    for dept, doctors in hospital_data["doctors"].items():
+        if dept in q:
+            return (
+                f"👨‍⚕️ Doctors available in **{dept.title()}**:\n\n"
+                + "\n".join(f"- {doc}" for doc in doctors)
+            )
 
-    if "floor" in q or "location" in q:
-        response = "🏥 **Hospital Floor Directory:**\n\n"
-        for floor, details in hospital_data["floors"].items():
-            response += f"• **{floor}**: {details}\n"
-        return response
+    # Final fallback
+    return (
+        "👨‍⚕️ Could you please specify your condition or department?\n\n"
+        "For example: diabetes, heart problem, fever, etc."
+    )
 
-    return None
 
 # -------------------------------
 # LLM Conversational Layer (Mock)
