@@ -130,6 +130,24 @@ for q in queries:
     print("Bot :", hybrid_chatbot(q))
     print("-" * 50)
 
+import streamlit as st
+
+st.set_page_config(page_title="Hospital Chatbot", layout="centered")
+
+st.title("🏥 Hospital Assistant Chatbot")
+st.caption("Hybrid Rule-Based + LLM Conversational System")
+
+user_input = st.text_input("Ask your question:")
+
+if user_input:
+    response = hybrid_chatbot(user_input)
+    st.success(response)
+
+st.markdown("---")
+st.markdown(
+    "⚠️ **Disclaimer:** This chatbot provides informational assistance only "
+    "and does not offer medical diagnosis or treatment."
+)
 
 
 
