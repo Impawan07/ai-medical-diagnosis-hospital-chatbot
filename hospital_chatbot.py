@@ -1,7 +1,7 @@
 import streamlit as st
 
 # -------------------------------
-# Page Config
+# Page Configuration
 # -------------------------------
 st.set_page_config(
     page_title="Hospital Assistant Chatbot",
@@ -10,7 +10,7 @@ st.set_page_config(
 )
 
 # -------------------------------
-# Sidebar
+# Sidebar: System Info
 # -------------------------------
 st.sidebar.title("🧠 System Info")
 st.sidebar.markdown(
@@ -53,6 +53,9 @@ hospital_data = {
     "emergency": "🚨 Emergency department is open 24/7 on the Ground Floor."
 }
 
+# -------------------------------
+# Medical Condition → Department Mapping
+# -------------------------------
 condition_to_department = {
     "diabetes": "endocrinology",
     "sugar": "endocrinology",
@@ -80,41 +83,53 @@ def rule_based_response(user_query):
             "Let me know if you'd like help finding a doctor."
         )
 
-   if "doctor" in q or "consult" in q:
-    # Check if a medical condition is mentioned
-    for condition, dept in condition_to_department.items():
-        if condition in q:
-            doctors = hospital_data["doctors"].get(dept, [])
-            return (
-                f"👨‍⚕️ For **{condition.title()}**, you should consult the "
-                f"**{dept.title()} department**.\n\n"
-                "Available doctors:\n"
-                + "\n".join(f"- {doc}" for doc in doctors)
-            )
+    if "doctor" in q or "consult" in q:
+        # Condition-based inference
+        for condition, dept in condition_to_department.items():
+            if condition in q:
+                doctors = hospital_data["doctors"].get(dept, [])
+                return (
+                    f"👨‍⚕️ For **{condition.title()}**, you should consult the "
+                    f"**{dept.title()} department**.\n\n"
+                    "Available doctors:\n"
+                    + "\n".join(f"- {doc}" for doc in doctors)
+                )
 
-    # Fallback: department explicitly mentioned
-    for dept, doctors in hospital_data["doctors"].items():
-        if dept in q:
-            return (
-                f"👨‍⚕️ Doctors available in **{dept.title()}**:\n\n"
-                + "\n".join(f"- {doc}" for doc in doctors)
-            )
+        # Department explicitly mentioned
+        for dept, doctors in hospital_data["doctors"].items():
+            if dept in q:
+                return (
+                    f"👨‍⚕️ Doctors available in **{dept.title()}**:\n\n"
+                    + "\n".join(f"- {doc}" for doc in doctors)
+                )
 
-    # Final fallback
-    return (
-        "👨‍⚕️ Could you please specify your condition or department?\n\n"
-        "For example: diabetes, heart problem, fever, etc."
-    )
+        return (
+            "👨‍⚕️ Could you please specify your condition?\n\n"
+            "For example: diabetes, heart problem, fever, etc."
+        )
 
+    if "bill" in q or "payment" in q:
+        modes = ", ".join(hospital_data["billing"]["payment_modes"])
+        return (
+            f"💳 Payment methods accepted: **{modes}**.\n\n"
+            f"For assistance, please visit the **{hospital_data['billing']['helpdesk']}**."
+        )
+
+    if "floor" in q or "location" in q:
+        response = "🏥 **Hospital Floor Directory:**\n\n"
+        for floor, details in hospital_data["floors"].items():
+            response += f"• **{floor}**: {details}\n"
+        return response
+
+    return None
 
 # -------------------------------
 # LLM Conversational Layer (Mock)
 # -------------------------------
 def llm_response(user_query):
     return (
-        "🤖 I’m here to help! You can ask me about appointments, "
-        "doctors, billing, hospital navigation, or general hospital services. "
-        "Please tell me how I can assist you."
+        "🤖 I’m here to help! You can ask me about appointments, doctors, "
+        "billing, hospital navigation, or general hospital services."
     )
 
 # -------------------------------
@@ -133,7 +148,7 @@ st.title("🏥 Hospital Assistant Chatbot")
 st.caption("Hybrid Rule-Based + LLM Conversational System")
 
 # -------------------------------
-# Architecture Explanation
+# Architecture Section
 # -------------------------------
 with st.expander("📐 System Architecture & Purpose"):
     st.markdown(
@@ -156,6 +171,12 @@ This hybrid approach ensures **accuracy, safety, and flexibility**.
     )
 
 # -------------------------------
+# Initialize Chat History
+# -------------------------------
+if "chat" not in st.session_state:
+    st.session_state.chat = []
+
+# -------------------------------
 # Quick Action Buttons
 # -------------------------------
 st.markdown("### ⚡ Quick Actions")
@@ -174,11 +195,8 @@ if col4.button("💳 Billing"):
     st.session_state.chat.append(("Bot", hybrid_chatbot("billing")))
 
 # -------------------------------
-# Chat History
+# Chat Interface
 # -------------------------------
-if "chat" not in st.session_state:
-    st.session_state.chat = []
-
 st.markdown("### 💬 Chat")
 
 user_input = st.text_input("Ask your question:")
