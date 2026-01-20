@@ -1,222 +1,139 @@
 import streamlit as st
+import random
 
-# -------------------------------
-# Page Configuration
-# -------------------------------
+# ===============================
+# PAGE CONFIG
+# ===============================
 st.set_page_config(
     page_title="Hospital Assistant Chatbot",
     page_icon="🏥",
     layout="centered"
 )
 
-# -------------------------------
-# Sidebar: System Info
-# -------------------------------
-st.sidebar.title("🧠 System Info")
-st.sidebar.markdown(
-    """
-**Architecture:**  
-Hybrid Rule-Based + LLM  
+# ===============================
+# SESSION STATE INIT
+# ===============================
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
 
-**Capabilities:**  
-• Appointments  
-• Doctor Lookup  
-• Billing & Payments  
-• Emergency Guidance  
-• Hospital Navigation  
+if "otp" not in st.session_state:
+    st.session_state.otp = None
 
-**Status:**  
-🟢 Live & Operational
-"""
-)
+if "mobile" not in st.session_state:
+    st.session_state.mobile = None
 
-# -------------------------------
-# Hospital Static Data
-# -------------------------------
+if "chat" not in st.session_state:
+    st.session_state.chat = []
+
+# ===============================
+# LOGIN SCREEN
+# ===============================
+def login_screen():
+    st.title("🔐 Patient Login")
+    st.caption("Login using your mobile number to access the Hospital Assistant")
+
+    mobile = st.text_input("📱 Enter Mobile Number", max_chars=10)
+
+    if st.button("Send OTP"):
+        if len(mobile) == 10 and mobile.isdigit():
+            otp = random.randint(100000, 999999)
+            st.session_state.otp = otp
+            st.session_state.mobile = mobile
+            st.success("✅ OTP sent successfully!")
+            st.info(f"🔑 OTP (Simulation): **{otp}**")  # simulation
+        else:
+            st.error("❌ Please enter a valid 10-digit mobile number")
+
+    if st.session_state.otp:
+        entered_otp = st.text_input("🔐 Enter OTP", max_chars=6)
+
+        if st.button("Verify OTP"):
+            if entered_otp == str(st.session_state.otp):
+                st.session_state.logged_in = True
+                st.success("🎉 Login successful!")
+                st.experimental_rerun()
+            else:
+                st.error("❌ Invalid OTP")
+
+# ===============================
+# CHATBOT DATA
+# ===============================
 hospital_data = {
     "doctors": {
         "endocrinology": ["Dr. Ramesh Kumar", "Dr. Anita Sharma"],
         "cardiology": ["Dr. Suresh Rao"],
         "general": ["Dr. Meena Patel"]
     },
-    "opd_timings": "9 AM to 5 PM (Monday to Saturday)",
-    "floors": {
-        "Ground Floor": "Reception, Pharmacy, Emergency",
-        "First Floor": "OPD Clinics",
-        "Second Floor": "Diagnostics & Labs",
-        "Third Floor": "ICU"
-    },
-    "billing": {
-        "payment_modes": ["Cash", "Card", "UPI", "Insurance"],
-        "helpdesk": "Billing counter near reception"
-    },
-    "emergency": "🚨 Emergency department is open 24/7 on the Ground Floor."
+    "opd_timings": "9 AM – 5 PM (Mon–Sat)",
+    "billing": ["Cash", "Card", "UPI", "Insurance"],
+    "emergency": "🚨 Emergency services are available 24/7 on the Ground Floor."
 }
 
-# -------------------------------
-# Medical Condition → Department Mapping
-# -------------------------------
 condition_to_department = {
     "diabetes": "endocrinology",
     "sugar": "endocrinology",
-    "heart": "cardiology",
-    "bp": "cardiology",
-    "blood pressure": "cardiology",
     "fever": "general",
     "cold": "general",
-    "cough": "general"
+    "heart": "cardiology",
+    "bp": "cardiology"
 }
 
-# -------------------------------
-# Rule-Based Engine
-# -------------------------------
-def rule_based_response(user_query):
-    q = user_query.lower()
+# ===============================
+# CHATBOT LOGIC
+# ===============================
+def chatbot_response(query):
+    q = query.lower()
 
     if "emergency" in q:
         return hospital_data["emergency"]
 
+    for condition, dept in condition_to_department.items():
+        if condition in q:
+            docs = hospital_data["doctors"][dept]
+            return f"👨‍⚕️ For **{condition}**, consult **{dept.title()}**:\n" + "\n".join(docs)
+
     if "appointment" in q:
-        return (
-            "🗓️ Sure! You can book appointments during OPD hours: "
-            f"**{hospital_data['opd_timings']}**. "
-            "Let me know if you'd like help finding a doctor."
-        )
-
-    if "doctor" in q or "consult" in q:
-        # Condition-based inference
-        for condition, dept in condition_to_department.items():
-            if condition in q:
-                doctors = hospital_data["doctors"].get(dept, [])
-                return (
-                    f"👨‍⚕️ For **{condition.title()}**, you should consult the "
-                    f"**{dept.title()} department**.\n\n"
-                    "Available doctors:\n"
-                    + "\n".join(f"- {doc}" for doc in doctors)
-                )
-
-        # Department explicitly mentioned
-        for dept, doctors in hospital_data["doctors"].items():
-            if dept in q:
-                return (
-                    f"👨‍⚕️ Doctors available in **{dept.title()}**:\n\n"
-                    + "\n".join(f"- {doc}" for doc in doctors)
-                )
-
-        return (
-            "👨‍⚕️ Could you please specify your condition?\n\n"
-            "For example: diabetes, heart problem, fever, etc."
-        )
+        return f"🗓️ OPD Timings: {hospital_data['opd_timings']}"
 
     if "bill" in q or "payment" in q:
-        modes = ", ".join(hospital_data["billing"]["payment_modes"])
-        return (
-            f"💳 Payment methods accepted: **{modes}**.\n\n"
-            f"For assistance, please visit the **{hospital_data['billing']['helpdesk']}**."
-        )
+        return "💳 Payment modes: " + ", ".join(hospital_data["billing"])
 
-    if "floor" in q or "location" in q:
-        response = "🏥 **Hospital Floor Directory:**\n\n"
-        for floor, details in hospital_data["floors"].items():
-            response += f"• **{floor}**: {details}\n"
-        return response
+    return "🤖 I can help with doctors, appointments, billing, and emergencies."
 
-    return None
+# ===============================
+# MAIN APP
+# ===============================
+if not st.session_state.logged_in:
+    login_screen()
 
-# -------------------------------
-# LLM Conversational Layer (Mock)
-# -------------------------------
-def llm_response(user_query):
-    return (
-        "🤖 I’m here to help! You can ask me about appointments, doctors, "
-        "billing, hospital navigation, or general hospital services."
-    )
+else:
+    st.sidebar.title("🧠 System Info")
+    st.sidebar.markdown(f"""
+**Logged in as:**  
+📱 {st.session_state.mobile}
 
-# -------------------------------
-# Hybrid Router
-# -------------------------------
-def hybrid_chatbot(user_query):
-    rule_response = rule_based_response(user_query)
-    if rule_response:
-        return rule_response
-    return llm_response(user_query)
+**Architecture:**  
+Hybrid Rule-Based + LLM  
+""")
 
-# -------------------------------
-# UI Header
-# -------------------------------
-st.title("🏥 Hospital Assistant Chatbot")
-st.caption("Hybrid Rule-Based + LLM Conversational System")
+    st.title("🏥 Hospital Assistant Chatbot")
+    st.caption("Secure Access Enabled via OTP Login")
 
-# -------------------------------
-# Architecture Section
-# -------------------------------
-with st.expander("📐 System Architecture & Purpose"):
-    st.markdown(
-        """
-**Rule-Based Engine**  
-• Appointments  
-• Doctor Lookup  
-• Billing Information  
-• Emergency Guidance  
-• Floor Navigation  
+    user_input = st.text_input("Ask your question:")
 
-**LLM Conversational Engine**  
-• Natural language understanding  
-• Process explanations  
-• FAQ handling  
-• Polite patient guidance  
+    if user_input:
+        st.session_state.chat.append(("You", user_input))
+        st.session_state.chat.append(("Bot", chatbot_response(user_input)))
 
-This hybrid approach ensures **accuracy, safety, and flexibility**.
-"""
-    )
+    for speaker, msg in st.session_state.chat:
+        if speaker == "You":
+            st.markdown(f"🧑 **You:** {msg}")
+        else:
+            st.success(f"🤖 {msg}")
 
-# -------------------------------
-# Initialize Chat History
-# -------------------------------
-if "chat" not in st.session_state:
-    st.session_state.chat = []
-
-# -------------------------------
-# Quick Action Buttons
-# -------------------------------
-st.markdown("### ⚡ Quick Actions")
-col1, col2, col3, col4 = st.columns(4)
-
-if col1.button("📅 Appointment"):
-    st.session_state.chat.append(("Bot", hybrid_chatbot("appointment")))
-
-if col2.button("👨‍⚕️ Find Doctor"):
-    st.session_state.chat.append(("Bot", hybrid_chatbot("doctor")))
-
-if col3.button("🚨 Emergency"):
-    st.session_state.chat.append(("Bot", hybrid_chatbot("emergency")))
-
-if col4.button("💳 Billing"):
-    st.session_state.chat.append(("Bot", hybrid_chatbot("billing")))
-
-# -------------------------------
-# Chat Interface
-# -------------------------------
-st.markdown("### 💬 Chat")
-
-user_input = st.text_input("Ask your question:")
-
-if user_input:
-    response = hybrid_chatbot(user_input)
-    st.session_state.chat.append(("You", user_input))
-    st.session_state.chat.append(("Bot", response))
-
-for speaker, msg in st.session_state.chat:
-    if speaker == "You":
-        st.markdown(f"**🧑 You:** {msg}")
-    else:
-        st.success(f"🤖 {msg}")
-
-# -------------------------------
-# Disclaimer
-# -------------------------------
-st.markdown("---")
-st.warning(
-    "⚠️ **Disclaimer:** This chatbot provides informational assistance only "
-    "and does not offer medical diagnosis or treatment."
-)
+    st.markdown("---")
+    if st.button("🚪 Logout"):
+        st.session_state.logged_in = False
+        st.session_state.chat = []
+        st.session_state.otp = None
+        st.experimental_rerun()
